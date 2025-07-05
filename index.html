@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en" class="transition-all duration-300">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🚀 To-Do List v5</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            funky: ['"Segoe UI"', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen flex items-center justify-center transition-all duration-300">
+  <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-xl">
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-3xl font-extrabold font-funky bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-transparent bg-clip-text">
+        ✅ My To-Do List
+      </h1>
+      <button onclick="toggleDarkMode()" class="text-2xl hover:scale-110 transition" title="Toggle Theme">🌓</button>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+      <input id="taskInput" type="text" placeholder="What do you need to do?"
+        class="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+      <select id="categoryInput" class="border rounded-lg px-3 py-2 dark:bg-gray-700 dark:text-white">
+        <option value="Work">🧑‍💻 Work</option>
+        <option value="Study">📚 Study</option>
+        <option value="Personal">🧘 Personal</option>
+        <option value="Other">🔧 Other</option>
+      </select>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2 mb-4">
+      <input id="dueDate" type="date"
+        class="border rounded-lg px-3 py-2 dark:bg-gray-700 dark:text-white" />
+      <input id="dueTime" type="time"
+        class="border rounded-lg px-3 py-2 dark:bg-gray-700 dark:text-white" />
+    </div>
+
+    <div class="flex gap-2 mb-4">
+      <button onclick="addTask()" 
+        class="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">Add Task</button>
+      <select id="filter" onchange="renderTasks()" class="border px-3 py-2 rounded-lg dark:bg-gray-700 dark:text-white">
+        <option value="All">All</option>
+        <option value="Pending">Pending</option>
+        <option value="Completed">Completed</option>
+        <option value="Work">Work</option>
+        <option value="Study">Study</option>
+        <option value="Personal">Personal</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+
+    <ul id="taskList" class="space-y-3 mb-4">
+      <!-- Tasks will appear here -->
+    </ul>
+
+    <div class="flex justify-between text-sm text-gray-600 dark:text-gray-300">
+      <span id="taskCount">0 tasks</span>
+      <button onclick="clearAll()" class="text-red-500 hover:text-red-700">🧹 Clear All</button>
+    </div>
+  </div>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+    const prefersDark = localStorage.getItem("darkMode") === "true";
+    if (prefersDark) document.documentElement.classList.add("dark");
+
+    function saveTasks() {
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+    }
+
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      html.classList.toggle("dark");
+      localStorage.setItem("darkMode", html.classList.contains("dark"));
+    }
+
+    function timeAgo(timestamp) {
+      const diff = Math.floor((Date.now() - timestamp) / 60000);
+      if (diff < 1) return "Just now";
+      if (diff < 60) return `${diff} min ago`;
+      const hrs = Math.floor(diff / 60);
+      return `${hrs} hr${hrs > 1 ? 's' : ''} ago`;
+    }
+
+    function getCountdown(dueDate, dueTime) {
+      if (!dueDate || !dueTime) return "";
+      const now = new Date();
+      const [hours, minutes] = dueTime.split(":").map(Number);
+      const due = new Date(dueDate);
+      due.setHours(hours, minutes, 0, 0);
+      const diff = Math.floor((due - now) / 60000);
+      if (diff < 0) return `<span class="text-red-400">⚠️ Overdue</span>`;
+      const h = Math.floor(diff / 60), m = diff % 60;
+      return `<span class="text-green-400">⏳ Due in ${h}h ${m}m</span>`;
+    }
+
+    function renderTasks() {
+      const list = document.getElementById("taskList");
+      const count = document.getElementById("taskCount");
+      const filter = document.getElementById("filter").value;
+      list.innerHTML = "";
+
+      let filtered = tasks;
+      if (filter === "Completed") filtered = tasks.filter(t => t.done);
+      else if (filter === "Pending") filtered = tasks.filter(t => !t.done);
+      else if (["Work", "Study", "Personal", "Other"].includes(filter)) {
+        filtered = tasks.filter(t => t.category === filter);
+      }
+
+      filtered.forEach((task, index) => {
+        const li = document.createElement("li");
+        li.className = "flex flex-col bg-gray-100 dark:bg-gray-700 p-3 rounded-lg animate-fade-in";
+
+        li.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <input type="checkbox" ${task.done ? "checked" : ""} onchange="toggleTask(${index})" />
+              <span class="flex-1 ${task.done ? 'line-through text-gray-400' : ''}">${task.text}</span>
+              <span class="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-600 rounded-full">${task.category}</span>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="editTask(${index})" class="text-yellow-500 hover:text-yellow-600">✏️</button>
+              <button onclick="deleteTask(${index})" class="text-red-500 hover:text-red-700">❌</button>
+            </div>
+          </div>
+          <div class="text-xs text-gray-500 flex justify-between mt-1">
+            <span>🕒 ${timeAgo(task.created)}</span>
+            ${getCountdown(task.dueDate, task.dueTime)}
+          </div>
+        `;
+        list.appendChild(li);
+      });
+
+      count.textContent = `${filtered.length} task${filtered.length !== 1 ? "s" : ""}`;
+      saveTasks();
+    }
+
+    function addTask() {
+      const text = document.getElementById("taskInput").value.trim();
+      const category = document.getElementById("categoryInput").value;
+      const dueDate = document.getElementById("dueDate").value;
+      const dueTime = document.getElementById("dueTime").value;
+
+      if (text) {
+        tasks.push({
+          text,
+          category,
+          created: Date.now(),
+          dueDate,
+          dueTime,
+          done: false
+        });
+        document.getElementById("taskInput").value = "";
+        document.getElementById("dueDate").value = "";
+        document.getElementById("dueTime").value = "";
+        renderTasks();
+      } else {
+        alert("Please enter a task!");
+      }
+    }
+
+    function toggleTask(index) {
+      tasks[index].done = !tasks[index].done;
+      renderTasks();
+    }
+
+    function deleteTask(index) {
+      tasks.splice(index, 1);
+      renderTasks();
+    }
+
+    function editTask(index) {
+      const newText = prompt("Edit task:", tasks[index].text);
+      if (newText !== null && newText.trim()) {
+        tasks[index].text = newText.trim();
+        renderTasks();
+      }
+    }
+
+    function clearAll() {
+      if (confirm("Clear all tasks?")) {
+        tasks = [];
+        renderTasks();
+      }
+    }
+
+    // Animation
+    const style = document.createElement("style");
+    style.innerHTML = `
+      .animate-fade-in {
+        animation: fadeIn 0.3s ease-in;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    `;
+    document.head.appendChild(style);
+
+    renderTasks();
+    setInterval(renderTasks, 60000); // update countdown every minute
+  </script>
+</body>
+</html>
